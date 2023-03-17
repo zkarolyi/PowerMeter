@@ -190,8 +190,25 @@ void flashLed()
   digitalWrite(ledPin, !digitalRead(ledPin)); // LED állapotának megfordítása
 }
 
-void sendMQTTMessage(String mqttPayload)
+void sendMQTTMessage(String payload)
 {
+  // Serial.println(payload);
+  int firstParenth = payload.indexOf("(");
+  int firstStar = payload.indexOf("*");
+  int lastParenth = payload.indexOf(")");
+  if (firstParenth == -1 || (firstStar == -1 && lastParenth == -1))
+  {
+    return;
+  }
+
+  String mqttTopic = topic + payload.substring(0, firstParenth);
+  String mqttPayload = payload.substring(firstParenth + 1, firstStar != -1 ? firstStar : lastParenth);
+
+  Serial.print("Sending (");
+  Serial.print(mqttTopic);
+  Serial.print("): ");
+  Serial.println(mqttPayload);
+
   if (!mqttClient.connected())
   {
     if (mqttClient.connect(clientId, mqttUsername, mqttPassword))
@@ -205,7 +222,7 @@ void sendMQTTMessage(String mqttPayload)
       Serial.println(" retrying later");
     }
   }
-  if (mqttClient.publish(topic, mqttPayload.c_str()))
+  if (mqttClient.publish(mqttTopic.c_str(), mqttPayload.c_str()))
   {
     Serial.println("Message published successfully.");
   }

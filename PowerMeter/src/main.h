@@ -20,5 +20,5 @@ const int mqttPort = 1883;
 const char* clientId = "PowerMeter";
 const char* mqttUsername = "openhabian";
 const char* mqttPassword = "openhabian";
-const char* topic = "pwr";
+const char* topic = "PowerMeter/";
 void sendMQTTMessage(String mqttPayload);
