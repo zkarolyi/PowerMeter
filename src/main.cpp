@@ -9,7 +9,7 @@ WebServer server(80); // A WebServer objektum inicializálása, 80-as porton
 char ssid[32];
 char password[64];
 
-char buffer[BUFFER_SIZE][MAX_STRING_LENGTH]; // MAX_STRING_LENGTH a legnagyobb várható string hossza
+String buffer[BUFFER_SIZE];
 
 int write_index = 0; // a következő írás helye
 int count = 0;       // az aktuális adatok száma a bufferben
@@ -41,16 +41,8 @@ void onSerialData()
         write_index = 0;
         count = 0;
       }
-      if (data.length() > MAX_STRING_LENGTH)
-      {
-        strcpy(buffer[write_index], data.substring(0, MAX_STRING_LENGTH - 1).c_str());
-        sendMQTTMessage(data.substring(0, MAX_STRING_LENGTH - 1));
-      }
-      else
-      {
-        strcpy(buffer[write_index], data.c_str());
-        sendMQTTMessage(data);
-      }
+      buffer[write_index] = data;
+      sendMQTTMessage(data);
       write_index = (write_index + 1) % BUFFER_SIZE;
       if (count < BUFFER_SIZE)
       {

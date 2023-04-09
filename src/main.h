@@ -1,5 +1,4 @@
 const int BUFFER_SIZE = 50;
-const int MAX_STRING_LENGTH = 128;
 
 void saveWiFiCredentials(const char* ssid, const char* password);
 boolean readWiFiCredentials(char* ssid, char* password);
