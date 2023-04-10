@@ -33,6 +33,7 @@ void onSerialData()
   if (Serial2.available())
   {
     String data = Serial2.readStringUntil('\n');
+    data.trim();
     if (data.length() > 0)
     {
       Serial.print("Serial data: ");
@@ -187,21 +188,20 @@ void flashLed()
 void sendMQTTMessage(String payload)
 {
   // Serial.println(payload);
-  int firstParenth = payload.indexOf("(");
-  int firstStar = payload.indexOf("*");
-  int lastParenth = payload.indexOf(")");
-  if (firstParenth == -1 || (firstStar == -1 && lastParenth == -1))
+  int firstOpenParenth = payload.indexOf("(");
+  int firstStar = payload.indexOf("*",firstOpenParenth);
+  int lastCloseParenth = payload.lastIndexOf(")");
+  String mqttTopic = topic + String("Dump");
+  String mqttPayload = payload;
+  if (firstOpenParenth != -1 && lastCloseParenth != -1)
   {
-    return;
+    mqttTopic = topic + payload.substring(0, firstOpenParenth);
+    mqttPayload = payload.substring(firstOpenParenth + 1, firstStar != -1 ? firstStar : lastCloseParenth);
   }
-
-  String mqttTopic = topic + payload.substring(0, firstParenth);
-  String mqttPayload = payload.substring(firstParenth + 1, firstStar != -1 ? firstStar : lastParenth);
-
-  Serial.print("Sending (");
-  Serial.print(mqttTopic);
-  Serial.print("): ");
-  Serial.println(mqttPayload);
+  // Serial.print("Sending (");
+  // Serial.print(mqttTopic);
+  // Serial.print("): ");
+  // Serial.println(mqttPayload);
 
   if (!mqttClient.connected())
   {
