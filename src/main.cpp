@@ -3,6 +3,7 @@
 #include <WebServer.h>
 #include <SPIFFS.h>
 #include <PubSubClient.h>
+#include "esp_task_wdt.h"
 #include "main.h"
 
 WebServer server(80); // A WebServer objektum inicializálása, 80-as porton
@@ -173,6 +174,7 @@ void timer()
   if (currentMillis - previousMillis >= interval)
   {                                 // ha eltelt a megadott idő
     previousMillis = currentMillis; // frissítjük az előző időt
+    esp_task_wdt_reset();
     flashLed();
   }
 }
@@ -274,6 +276,8 @@ void setup()
     }
   }
   Serial.println("MQTT connected.");
+  // Watchdog beállítása 12 másodperces időkorlátra
+  esp_task_wdt_init(12, true);
 }
 
 void loop()
