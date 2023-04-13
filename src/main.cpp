@@ -6,6 +6,7 @@
 #include <ArduinoOTA.h>
 #include "esp_task_wdt.h"
 #include "main.h"
+#include "cJSON.h"
 
 WebServer server(80); // A WebServer objektum inicializálása, 80-as porton
 char ssid[32];
@@ -27,6 +28,15 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
   Serial.print(") -> ");
   String strPayload = String((char *)payload).substring(0, length);
   Serial.println(strPayload);
+}
+
+const char *getP1Text(const char *key)
+{
+  cJSON *root = cJSON_Parse(txtP1Rows);
+  cJSON *value = cJSON_GetObjectItem(root, key);
+  const char *strValue = cJSON_GetStringValue(value);
+  cJSON_Delete(root);
+  return strValue;
 }
 
 void onSerialData()
@@ -57,9 +67,16 @@ void onSerialData()
 
 void onRequest()
 {
-  String html = "<html>\n<body>\n";
+  String html = "<html>\n<head>\n<meta http-equiv='Content-Type' content='text/html;charset=UTF-8'>\n</head>\n<body>\n";
   for (int i = 0; i < count; i++)
   {
+    int firstOpenParenth = buffer[i].indexOf("(");
+    if (firstOpenParenth != -1)
+    {
+      String key = buffer[i].substring(0, firstOpenParenth);
+      html += getP1Text(key.c_str());
+      html += ": ";
+    }
     html += buffer[i];
     html += "<br/>\n";
   }
@@ -231,6 +248,7 @@ void sendMQTTMessage(String payload)
 void setup()
 {
   Serial.begin(115200);
+  Serial2.setRxBufferSize(1500);
   Serial2.begin(115200, SERIAL_8N1, 16, -1, true);
 
   pinMode(ledPin, OUTPUT); // LED lábának beállítása kimenetre
