@@ -211,7 +211,7 @@ void sendMQTTMessage(String payload)
   int lastCloseParenth = payload.lastIndexOf(")");
   String mqttTopic = topic + String("Dump");
   String mqttPayload = payload;
-  if (firstOpenParenth != -1 && lastCloseParenth != -1)
+  if (firstOpenParenth != -1 && lastCloseParenth != -1 && payload.length() < 200)
   {
     mqttTopic = topic + payload.substring(0, firstOpenParenth);
     mqttPayload = payload.substring(firstOpenParenth + 1, firstStar != -1 ? firstStar : lastCloseParenth);
