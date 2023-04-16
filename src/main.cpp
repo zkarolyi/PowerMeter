@@ -206,12 +206,16 @@ void flashLed()
 void sendMQTTMessage(String payload)
 {
   // Serial.println(payload);
+  if (payload.length() > MQTT_MAX_PACKET_SIZE)
+  {
+    return;
+  }
   int firstOpenParenth = payload.indexOf("(");
   int firstStar = payload.indexOf("*", firstOpenParenth);
   int lastCloseParenth = payload.lastIndexOf(")");
   String mqttTopic = topic + String("Dump");
   String mqttPayload = payload;
-  if (firstOpenParenth != -1 && lastCloseParenth != -1 && payload.length() < 200)
+  if (firstOpenParenth != -1 && lastCloseParenth != -1)
   {
     mqttTopic = topic + payload.substring(0, firstOpenParenth);
     mqttPayload = payload.substring(firstOpenParenth + 1, firstStar != -1 ? firstStar : lastCloseParenth);
@@ -248,7 +252,7 @@ void sendMQTTMessage(String payload)
 void setup()
 {
   Serial.begin(115200);
-  Serial2.setRxBufferSize(1500);
+  Serial2.setRxBufferSize(SERIAL_RX_BUFFER_SIZE);
   Serial2.begin(115200, SERIAL_8N1, 16, -1, true);
 
   pinMode(ledPin, OUTPUT); // LED lábának beállítása kimenetre
@@ -336,7 +340,7 @@ void setup()
   ArduinoOTA.begin();
 
   // Watchdog beállítása 12 másodperces időkorlátra
-  esp_task_wdt_init(12, true);
+  esp_task_wdt_init(3, true);
 }
 
 void loop()

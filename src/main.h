@@ -14,6 +14,8 @@ unsigned long previousMillis = 0; // változó az időzítéshez
 const long interval = 1000; // az időköz, amelyenként villog a LED
 void flashLed();
 
+const int SERIAL_RX_BUFFER_SIZE = 3000;
+
 const char* mqttBroker = "192.168.1.120";
 const int mqttPort = 1883;
 const char* clientId = "PowerMeter";
