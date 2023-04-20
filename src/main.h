@@ -14,7 +14,7 @@ unsigned long previousMillis = 0; // változó az időzítéshez
 const long interval = 1000; // az időköz, amelyenként villog a LED
 void flashLed();
 
-const int SERIAL_RX_BUFFER_SIZE = 3000;
+const int SERIAL_RX_BUFFER_SIZE = 3500;
 
 const char* mqttBroker = "192.168.1.120";
 const int mqttPort = 1883;
@@ -22,6 +22,8 @@ const char* clientId = "PowerMeter";
 const char* mqttUsername = "openhabian";
 const char* mqttPassword = "openhabian";
 const char* topic = "PowerMeter/";
+int crc16Value = 0;
+const int MQTT_INCREASED_PACKET_SIZE = 256;
 void sendMQTTMessage(String mqttPayload);
 
 const char* txtP1Rows = "{\

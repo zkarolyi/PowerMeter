@@ -7,6 +7,7 @@
 #include "esp_task_wdt.h"
 #include "main.h"
 #include "cJSON.h"
+#include "crc16.h"
 
 WebServer server(80); // A WebServer objektum inicializálása, 80-as porton
 char ssid[32];
@@ -43,24 +44,38 @@ void onSerialData()
 {
   if (Serial2.available())
   {
-    String data = Serial2.readStringUntil('\n');
-    data.trim();
-    if (data.length() > 0)
+    String data = Serial2.readStringUntil('\n') + "\n";
+    Serial.print("Serial data: ");
+    Serial.println(data);
+    if (data.startsWith("/"))
     {
-      Serial.print("Serial data: ");
-      Serial.println(data);
-      if (data.startsWith("/"))
+      crc16Value = CRC16(0x0000, (unsigned char *)data.c_str(), data.length());
+      write_index = 0;
+      count = 0;
+    }
+    else if (data.startsWith("!"))
+    {
+      crc16Value = CRC16(crc16Value, (unsigned char *)"!", 1);
+      if (data.length() > 5 && data.substring(1, 5).equalsIgnoreCase(String(crc16Value, HEX)))
       {
-        write_index = 0;
-        count = 0;
+        data = "CRC (" + String(crc16Value, HEX) + " OK)";
       }
-      buffer[write_index] = data;
-      sendMQTTMessage(data);
-      write_index = (write_index + 1) % BUFFER_SIZE;
-      if (count < BUFFER_SIZE)
+      else
       {
-        count++;
+        data = "CRC (CRC error)";
       }
+    }
+    else
+    {
+      crc16Value = CRC16(crc16Value, (unsigned char *)data.c_str(), data.length());
+    }
+    buffer[write_index] = data;
+    data.trim();
+    sendMQTTMessage(data);
+    write_index = (write_index + 1) % BUFFER_SIZE;
+    if (count < BUFFER_SIZE)
+    {
+      count++;
     }
   }
 }
@@ -225,6 +240,7 @@ void sendMQTTMessage(String payload)
   // Serial.print("): ");
   // Serial.println(mqttPayload);
 
+  mqttClient.setBufferSize(MQTT_INCREASED_PACKET_SIZE);
   if (!mqttClient.connected())
   {
     if (mqttClient.connect(clientId, mqttUsername, mqttPassword))
