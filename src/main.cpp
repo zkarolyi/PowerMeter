@@ -240,7 +240,6 @@ void sendMQTTMessage(String payload)
   // Serial.print("): ");
   // Serial.println(mqttPayload);
 
-  mqttClient.setBufferSize(MQTT_INCREASED_PACKET_SIZE);
   if (!mqttClient.connected())
   {
     if (mqttClient.connect(clientId, mqttUsername, mqttPassword))
@@ -273,6 +272,10 @@ void setup()
 
   pinMode(ledPin, OUTPUT); // LED lábának beállítása kimenetre
 
+  // Watchdog beállítása 12 másodperces időkorlátra
+  esp_task_wdt_init(12, true);
+  esp_task_wdt_add(NULL);
+
   // SPIFFS inicializálása
   if (!SPIFFS.begin(true))
   {
@@ -299,22 +302,24 @@ void setup()
   server.onNotFound(onNotFound);
   server.begin(); // A WebServer elindítása
 
-  Serial.println("Starting MQTT");
   mqttClient.setServer(mqttBroker, mqttPort);
+  mqttClient.setBufferSize(MQTT_INCREASED_PACKET_SIZE);
+  Serial.println("Starting MQTT callback");
   // mqttClient.setCallback(mqttCallback);
-  while (!mqttClient.connected())
-  {
-    if (mqttClient.connect(clientId, mqttUsername, mqttPassword))
-    {
-      mqttClient.subscribe(topic);
-    }
-    else
-    {
-      Serial.println("Waitinf for MQTT");
-      delay(5000);
-    }
-  }
-  Serial.println("MQTT connected.");
+  // int tryMqtt = 0;
+  // while (!mqttClient.connected() && tryMqtt++ < 5)
+  // {
+  //   if (mqttClient.connect(clientId, mqttUsername, mqttPassword))
+  //   {
+  //     mqttClient.subscribe(topic);
+  //   }
+  //   else
+  //   {
+  //     Serial.println("Waitinf for MQTT - " + tryMqtt);
+  //     delay(1000);
+  //   }
+  // }
+  Serial.println("MQTT callback connected");
 
   // OTA
   // Port defaults to 3232
@@ -354,9 +359,6 @@ void setup()
       else if (error == OTA_END_ERROR) Serial.println("End Failed"); });
 
   ArduinoOTA.begin();
-
-  // Watchdog beállítása 12 másodperces időkorlátra
-  esp_task_wdt_init(3, true);
 }
 
 void loop()
