@@ -187,6 +187,7 @@ void connectToRouter(String ssid, String password)
     return;
   }
 
+  apActiveMillis = 0;
   Serial.println("Connected to WiFi");
   Serial.print("Kapott IP-cím: ");
   Serial.println(WiFi.localIP());
@@ -199,6 +200,7 @@ void createAP()
   IPAddress myIP = WiFi.softAPIP();
   Serial.print("AP IP-cím: ");
   Serial.println(myIP);
+  apActiveMillis = millis();
 }
 
 void timer()
@@ -210,6 +212,11 @@ void timer()
     previousMillis = currentMillis; // frissítjük az előző időt
     esp_task_wdt_reset();
     flashLed();
+  }
+  if(apActiveMillis > 0 && currentMillis - apActiveMillis >= apInterval)
+  {
+    Serial.println("WIFI AP mode timed out. Restarting...");
+    ESP.restart();
   }
 }
 

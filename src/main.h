@@ -2,6 +2,8 @@ const int BUFFER_SIZE = 50;
 
 void saveWiFiCredentials(const char* ssid, const char* password);
 boolean readWiFiCredentials(char* ssid, char* password);
+unsigned long apActiveMillis = 0; // mennyi ideje van AP módban a WIFI. 0: nem AP módban van
+const long apInterval = 600000; // AP mód timeout
 
 void handleRoot();
 void handleConnect();
