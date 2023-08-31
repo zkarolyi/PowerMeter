@@ -106,7 +106,6 @@ void onNotFound()
 
 void saveWiFiCredentials(const char *ssid, const char *password)
 {
-  // Wi-Fi hálózati adatok mentése az SPIFFS fájlrendszerbe
   File file = SPIFFS.open("/wifi.txt", FILE_WRITE);
   if (!file)
   {
@@ -120,7 +119,6 @@ void saveWiFiCredentials(const char *ssid, const char *password)
 
 boolean readWiFiCredentials(char *ssid, char *password)
 {
-  // Wi-Fi hálózati adatok olvasása az SPIFFS fájlrendszerből
   if (!SPIFFS.exists("/wifi.txt"))
   {
     Serial.println("No wifi file found");
@@ -142,9 +140,7 @@ boolean readWiFiCredentials(char *ssid, char *password)
 }
 
 void handleRoot()
-{ // A függvény, ami a főoldalt kiszolgálja
-  // Serial.print("Wifi mode: ");
-  // Serial.println(WiFi.getMode());
+{
   if (WiFi.getMode() == WIFI_STA)
   {
     server.send(200, "text/html", "<p1>Kapcsolat rendben</p1>");
@@ -156,12 +152,11 @@ void handleRoot()
 }
 
 void handleConnect()
-{ // A függvény, ami a kapcsolatot kezeli
+{
   String ssid = server.arg("ssid");
   String password = server.arg("password");
   saveWiFiCredentials(ssid.c_str(), password.c_str());
   connectToRouter(ssid, password);
-  // server.send(200, "text/html", "Connected to WiFi!");  // A kapcsolódás visszajelzése
 }
 
 void connectToRouter(String ssid, String password)
@@ -170,14 +165,14 @@ void connectToRouter(String ssid, String password)
   Serial.print(password);
   Serial.println("--");
   WiFi.disconnect();
+  WiFi.setHostname("PowerMeter");
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid.c_str(), password.c_str()); // A WiFi hálózathoz való kapcsolódás
   int countDown = 10;
   Serial.print("Connecting to router ");
   while (WiFi.status() != WL_CONNECTED && countDown-- > 0)
-  { // Várakozás a kapcsolódásra
+  {
     Serial.print(".");
-    // Serial.println(WiFi.status());
     delay(1000);
   }
   if (countDown < 1)
@@ -227,7 +222,6 @@ void flashLed()
 
 void sendMQTTMessage(String payload)
 {
-  // Serial.println(payload);
   if (payload.length() > MQTT_MAX_PACKET_SIZE)
   {
     return;
@@ -242,10 +236,6 @@ void sendMQTTMessage(String payload)
     mqttTopic = topic + payload.substring(0, firstOpenParenth);
     mqttPayload = payload.substring(firstOpenParenth + 1, firstStar != -1 ? firstStar : lastCloseParenth);
   }
-  // Serial.print("Sending (");
-  // Serial.print(mqttTopic);
-  // Serial.print("): ");
-  // Serial.println(mqttPayload);
 
   if (!mqttClient.connected())
   {
@@ -373,17 +363,9 @@ void setup()
 
 void loop()
 {
-  server.handleClient(); // A klienst kezelő függvény hívása
-  // Serial.println("Loop...");
+  server.handleClient();
   onSerialData();
   mqttClient.loop();
   ArduinoOTA.handle();
   timer();
-  // Serial.print("Wifi mode: ");
-  // Serial.println(WiFi.getMode());
-  // Serial.print("Kapott IP-cím: ");
-  // Serial.println(WiFi.localIP());
-  // Serial.print("AP IP-cím: ");
-  // Serial.println(WiFi.softAPIP());
-  // delay(1000);
 }
