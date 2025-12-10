@@ -198,6 +198,34 @@ void createAP()
   apActiveMillis = millis();
 }
 
+void checkWiFiConnection()
+{
+  unsigned long currentMillis = millis();
+  
+  // Csak akkor ellenőrizzük, ha nem AP módban vagyunk és eltelt az ellenőrzési időköz
+  if (apActiveMillis == 0 && currentMillis - lastWiFiCheckMillis >= wifiCheckInterval)
+  {
+    lastWiFiCheckMillis = currentMillis;
+    
+    // Ha nincs WiFi kapcsolat STA módban
+    if (WiFi.getMode() == WIFI_STA && WiFi.status() != WL_CONNECTED)
+    {
+      Serial.println("WiFi connection lost. Attempting to reconnect...");
+      
+      // Ha vannak mentett hitelesítő adatok, próbáljunk újracsatlakozni
+      if (strlen(ssid) > 0)
+      {
+        connectToRouter(String(ssid), String(password));
+      }
+      else
+      {
+        Serial.println("No saved credentials. Switching to AP mode.");
+        createAP();
+      }
+    }
+  }
+}
+
 void timer()
 {
   unsigned long currentMillis = millis(); // aktuális idő lekérdezése
@@ -367,5 +395,6 @@ void loop()
   onSerialData();
   mqttClient.loop();
   ArduinoOTA.handle();
+  checkWiFiConnection();
   timer();
 }
