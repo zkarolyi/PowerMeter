@@ -202,26 +202,18 @@ void checkWiFiConnection()
 {
   unsigned long currentMillis = millis();
   
-  // Csak akkor ellenőrizzük, ha nem AP módban vagyunk és eltelt az ellenőrzési időköz
-  if (apActiveMillis == 0 && currentMillis - lastWiFiCheckMillis >= wifiCheckInterval)
+  // Csak akkor ellenőrizzük, ha STA módban vagyunk, nincs AP mód aktív, és eltelt az ellenőrzési időköz
+  if (WiFi.getMode() == WIFI_STA && apActiveMillis == 0 && currentMillis - lastWiFiCheckMillis >= wifiCheckInterval)
   {
     lastWiFiCheckMillis = currentMillis;
     
-    // Ha nincs WiFi kapcsolat STA módban
-    if (WiFi.getMode() == WIFI_STA && WiFi.status() != WL_CONNECTED)
+    // Ha nincs WiFi kapcsolat
+    if (WiFi.status() != WL_CONNECTED)
     {
       Serial.println("WiFi connection lost. Attempting to reconnect...");
-      
-      // Ha vannak mentett hitelesítő adatok, próbáljunk újracsatlakozni
-      if (strlen(ssid) > 0)
-      {
-        connectToRouter(String(ssid), String(password));
-      }
-      else
-      {
-        Serial.println("No saved credentials. Switching to AP mode.");
-        createAP();
-      }
+      connectToRouter(String(ssid), String(password));
+      // Ha connectToRouter sikertelen, createAP()-t hív, ami beállítja apActiveMillis-t
+      // és ezzel megakadályozza a további újracsatlakozási kísérleteket
     }
   }
 }
