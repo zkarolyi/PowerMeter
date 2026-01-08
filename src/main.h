@@ -4,12 +4,15 @@ void saveWiFiCredentials(const char* ssid, const char* password);
 boolean readWiFiCredentials(char* ssid, char* password);
 unsigned long apActiveMillis = 0; // mennyi ideje van AP módban a WIFI. 0: nem AP módban van
 const long apInterval = 600000; // AP mód timeout
+unsigned long lastWiFiCheckMillis = 0; // utolsó WiFi ellenőrzés ideje
+const long wifiCheckInterval = 10000; // WiFi ellenőrzés gyakorisága (10 másodperc)
 
 void handleRoot();
 void handleConnect();
 
 void connectToRouter(String ssid, String password);
 void createAP();
+void checkWiFiConnection();
 
 const int ledPin = 2; // beépített LED lába
 unsigned long previousMillis = 0; // változó az időzítéshez
