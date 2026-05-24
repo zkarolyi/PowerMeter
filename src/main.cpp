@@ -31,13 +31,13 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
   Serial.println(strPayload);
 }
 
-const char *getP1Text(const char *key)
+String getP1Text(const char *key)
 {
   cJSON *root = cJSON_Parse(txtP1Rows);
   cJSON *value = cJSON_GetObjectItem(root, key);
-  const char *strValue = cJSON_GetStringValue(value);
+  String result = String(cJSON_GetStringValue(value));
   cJSON_Delete(root);
-  return strValue;
+  return result;
 }
 
 void onSerialData()
@@ -106,6 +106,7 @@ void onNotFound()
 
 void saveWiFiCredentials(const char *ssid, const char *password)
 {
+  esp_task_wdt_reset();
   File file = SPIFFS.open("/wifi.txt", FILE_WRITE);
   if (!file)
   {
@@ -124,6 +125,7 @@ boolean readWiFiCredentials(char *ssid, char *password)
     Serial.println("No wifi file found");
     return false;
   }
+  esp_task_wdt_reset();
   File file = SPIFFS.open("/wifi.txt", FILE_READ);
   if (!file)
   {
@@ -165,14 +167,16 @@ void connectToRouter(String ssid, String password)
   Serial.print(password);
   Serial.println("--");
   WiFi.disconnect();
+  delay(100);
   WiFi.setHostname("PowerMeter");
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid.c_str(), password.c_str()); // A WiFi hálózathoz való kapcsolódás
-  int countDown = 10;
+  int countDown = wifiConnectRetries;
   Serial.print("Connecting to router ");
   while (WiFi.status() != WL_CONNECTED && countDown-- > 0)
   {
     Serial.print(".");
+    esp_task_wdt_reset();
     delay(1000);
   }
   if (countDown < 1)
@@ -226,7 +230,15 @@ void timer()
   {                                 // ha eltelt a megadott idő
     previousMillis = currentMillis; // frissítjük az előző időt
     esp_task_wdt_reset();
-    flashLed();
+    if (apActiveMillis == 0)
+    {
+      flashLed(); // normál mód: 1 másodpercenként villog
+    }
+  }
+  if (apActiveMillis > 0 && currentMillis - previousMillisLed >= 200)
+  {
+    previousMillisLed = currentMillis;
+    flashLed(); // AP mód: 200ms-enként villog
   }
   if(apActiveMillis > 0 && currentMillis - apActiveMillis >= apInterval)
   {
