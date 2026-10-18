@@ -55,6 +55,8 @@ void onSerialData()
     String data = Serial2.readStringUntil('\n') + "\n";
     Serial.print("Serial data: ");
     Serial.println(data);
+    bool telegramEnd = false;
+    bool crcOk = false;
     if (data.startsWith("/"))
     {
       crc16Value = CRC16(0x0000, (unsigned char *)data.c_str(), data.length());
@@ -66,7 +68,9 @@ void onSerialData()
       crc16Value = CRC16(crc16Value, (unsigned char *)"!", 1);
       char crcHex[5];
       snprintf(crcHex, sizeof(crcHex), "%04X", crc16Value); // vezető nullákkal, pl. 0ABC
-      if (data.length() > 5 && data.substring(1, 5).equalsIgnoreCase(crcHex))
+      telegramEnd = true;
+      crcOk = data.length() > 5 && data.substring(1, 5).equalsIgnoreCase(crcHex);
+      if (crcOk)
       {
         data = "CRC (" + String(crcHex) + " OK)";
       }
@@ -79,13 +83,35 @@ void onSerialData()
     {
       crc16Value = CRC16(crc16Value, (unsigned char *)data.c_str(), data.length());
     }
+    if (count == BUFFER_SIZE)
+    {
+      Serial.println("Telegram longer than buffer, oldest line dropped");
+    }
     buffer[write_index] = data;
-    data.trim();
-    sendMQTTMessage(data);
     write_index = (write_index + 1) % BUFFER_SIZE;
     if (count < BUFFER_SIZE)
     {
       count++;
+    }
+    if (telegramEnd)
+    {
+      publishTelegram(crcOk);
+    }
+  }
+}
+
+// A teljes táviratot csak sikeres CRC ellenőrzés után küldjük MQTT-re, hibás CRC esetén csak a CRC sort
+void publishTelegram(bool crcOk)
+{
+  int first = crcOk ? 0 : count - 1;
+  int start = count < BUFFER_SIZE ? 0 : write_index; // a legrégebbi sor helye
+  for (int i = first; i < count; i++)
+  {
+    String line = buffer[(start + i) % BUFFER_SIZE];
+    line.trim();
+    if (line.length() > 0)
+    {
+      sendMQTTMessage(line);
     }
   }
 }
@@ -202,26 +228,11 @@ void connectToRouter(String ssid, String password)
   WiFi.setHostname("PowerMeter");
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid.c_str(), password.c_str()); // A WiFi hálózathoz való kapcsolódás
-  int countDown = wifiConnectRetries;
-  Serial.print("Connecting to router ");
-  while (WiFi.status() != WL_CONNECTED && countDown-- > 0)
-  {
-    Serial.print(".");
-    esp_task_wdt_reset();
-    delay(1000);
-  }
-  if (WiFi.status() != WL_CONNECTED)
-  {
-    Serial.println();
-    Serial.println("Can not connect. Back to AP mode.");
-    createAP();
-    return;
-  }
-
+  Serial.println("Connecting to router...");
+  // Nem várunk itt: a checkWiFiConnection() figyeli az eredményt a loop()-ban
   apActiveMillis = 0;
-  Serial.println("Connected to WiFi");
-  Serial.print("Kapott IP-cím: ");
-  Serial.println(WiFi.localIP());
+  wifiConnecting = true;
+  wifiConnectStartMillis = millis();
 }
 
 void createAP()
@@ -237,7 +248,26 @@ void createAP()
 void checkWiFiConnection()
 {
   unsigned long currentMillis = millis();
-  
+
+  if (wifiConnecting)
+  {
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      wifiConnecting = false;
+      lastWiFiCheckMillis = currentMillis;
+      Serial.println("Connected to WiFi");
+      Serial.print("Kapott IP-cím: ");
+      Serial.println(WiFi.localIP());
+    }
+    else if (currentMillis - wifiConnectStartMillis >= wifiConnectTimeout)
+    {
+      wifiConnecting = false;
+      Serial.println("Can not connect. Back to AP mode.");
+      createAP();
+    }
+    return;
+  }
+
   // Csak akkor ellenőrizzük, ha STA módban vagyunk, nincs AP mód aktív, és eltelt az ellenőrzési időköz
   if (WiFi.getMode() == WIFI_STA && apActiveMillis == 0 && currentMillis - lastWiFiCheckMillis >= wifiCheckInterval)
   {
@@ -248,7 +278,7 @@ void checkWiFiConnection()
     {
       Serial.println("WiFi connection lost. Attempting to reconnect...");
       connectToRouter(String(ssid), String(password));
-      // Ha connectToRouter sikertelen, createAP()-t hív, ami beállítja apActiveMillis-t
+      // Ha a kapcsolódás időtúllépéssel végződik, createAP() beállítja apActiveMillis-t
       // és ezzel megakadályozza a további újracsatlakozási kísérleteket
     }
   }

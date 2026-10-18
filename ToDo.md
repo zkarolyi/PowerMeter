@@ -22,5 +22,5 @@
 
 ## PR 3 – Optional design changes
 
-- [ ] **8. Publish only after CRC check** – lines are published as they arrive, so corrupted telegrams publish bad values. Buffer the telegram and publish only on CRC OK (CRC result to `PowerMeter/Dump`).
-- [ ] **9. Non-blocking WiFi reconnect** – reconnecting blocks `loop()` for up to 30 s, while the 3500-byte receive buffer holds only about one telegram.
+- [x] **8. Publish only after CRC check** – lines are published as they arrive, so corrupted telegrams publish bad values. Buffer the telegram and publish only on CRC OK (CRC result to `PowerMeter/Dump`).
+- [x] **9. Non-blocking WiFi reconnect** – reconnecting blocks `loop()` for up to 30 s, while the 3500-byte receive buffer holds only about one telegram.

@@ -9,6 +9,9 @@ const unsigned long wifiCheckInterval = 10000; // WiFi ellenőrzés gyakorisága
 const int SSID_SIZE = 33;     // max. 32 karakter + lezáró nulla
 const int PASSWORD_SIZE = 65; // max. 64 karakter + lezáró nulla
 bool wifiConnectRequested = false; // a /connect kérés után a loop()-ban kapcsolódunk, hogy a válasz kimenjen
+bool wifiConnecting = false; // folyamatban van-e a kapcsolódás (nem blokkoló, a loop() figyeli)
+unsigned long wifiConnectStartMillis = 0; // a kapcsolódás kezdete
+const unsigned long wifiConnectTimeout = 30000; // ennyi idő után AP módba vált (30 másodperc)
 
 void handleRoot();
 void handleConnect();
@@ -24,7 +27,6 @@ const unsigned long interval = 1000; // az időköz, amelyenként villog a LED
 void flashLed();
 
 const int SERIAL_RX_BUFFER_SIZE = 3500;
-const int wifiConnectRetries = 30; // WiFi kapcsolódási kísérletek száma
 
 const char* mqttBroker = "192.168.1.120";
 const int mqttPort = 1883;
@@ -38,6 +40,7 @@ const uint16_t mqttSocketTimeout = 5; // másodperc, a 12 mp-es watchdog alatt k
 unsigned long lastMqttConnectAttemptMillis = 0; // utolsó MQTT kapcsolódási kísérlet ideje
 const unsigned long mqttReconnectInterval = 5000; // MQTT újracsatlakozás gyakorisága (5 másodperc)
 void sendMQTTMessage(String mqttPayload);
+void publishTelegram(bool crcOk);
 
 const char* txtP1Rows = "{\
 \"0-0:1.0.0\":\"Idő\",\
