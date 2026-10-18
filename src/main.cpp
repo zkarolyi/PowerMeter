@@ -21,22 +21,30 @@ int count = 0;       // az aktuális adatok száma a bufferben
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
-void mqttCallback(char *topic, byte *payload, unsigned int length)
-{
-  // handle incoming messages here
-  Serial.print("Received something on MQTT (");
-  Serial.print(topic);
-  Serial.print(") -> ");
-  String strPayload = String((char *)payload).substring(0, length);
-  Serial.println(strPayload);
-}
-
 String getP1Text(const char *key)
 {
-  cJSON *root = cJSON_Parse(txtP1Rows);
-  cJSON *value = cJSON_GetObjectItem(root, key);
-  String result = String(cJSON_GetStringValue(value));
-  cJSON_Delete(root);
+  static cJSON *p1Texts = cJSON_Parse(txtP1Rows); // csak az első híváskor parse-oljuk, utána a memóriában marad
+  const char *text = cJSON_GetStringValue(cJSON_GetObjectItem(p1Texts, key));
+  return text ? String(text) : String();
+}
+
+String htmlEscape(const String &text)
+{
+  String result;
+  result.reserve(text.length());
+  for (unsigned int i = 0; i < text.length(); i++)
+  {
+    char c = text[i];
+    switch (c)
+    {
+    case '&': result += "&amp;"; break;
+    case '<': result += "&lt;"; break;
+    case '>': result += "&gt;"; break;
+    case '"': result += "&quot;"; break;
+    case '\'': result += "&#39;"; break;
+    default: result += c;
+    }
+  }
   return result;
 }
 
@@ -91,10 +99,14 @@ void onRequest()
     if (firstOpenParenth != -1)
     {
       String key = buffer[i].substring(0, firstOpenParenth);
-      html += getP1Text(key.c_str());
-      html += ": ";
+      String text = getP1Text(key.c_str());
+      if (text.length() > 0)
+      {
+        html += htmlEscape(text);
+        html += ": ";
+      }
     }
-    html += buffer[i];
+    html += htmlEscape(buffer[i]);
     html += "<br/>\n";
   }
   html += "</body>\n</html>\n";
@@ -177,7 +189,7 @@ void handleConnect()
   saveWiFiCredentials(newSsid.c_str(), newPassword.c_str());
   newSsid.toCharArray(ssid, SSID_SIZE);
   newPassword.toCharArray(password, PASSWORD_SIZE);
-  server.send(200, "text/html", "<p1>Csatlakozás: " + newSsid + "</p1>");
+  server.send(200, "text/html", "<p1>Csatlakozás: " + htmlEscape(newSsid) + "</p1>");
   wifiConnectRequested = true; // a loop() kapcsolódik, miután a válasz kiment
 }
 
@@ -342,15 +354,11 @@ void setup()
   esp_task_wdt_add(NULL);
 
   // SPIFFS inicializálása
-  if (!SPIFFS.begin(true))
-  {
-    Serial.println("Failed to initialize SPIFFS");
-    return;
-  }
+  // hiba esetén sem állunk meg: AP módban a web szerver és az OTA továbbra is elérhető
+  bool spiffsOk = SPIFFS.begin(true);
+  Serial.println(spiffsOk ? "SPIFFS initialized" : "Failed to initialize SPIFFS");
 
-  Serial.println("SPIFFS initialized");
-
-  if (readWiFiCredentials(ssid, password))
+  if (spiffsOk && readWiFiCredentials(ssid, password))
   {
     Serial.println("Connect to router");
     connectToRouter(ssid, password);
@@ -370,22 +378,6 @@ void setup()
   mqttClient.setServer(mqttBroker, mqttPort);
   mqttClient.setBufferSize(MQTT_INCREASED_PACKET_SIZE);
   mqttClient.setSocketTimeout(mqttSocketTimeout);
-  Serial.println("Starting MQTT callback");
-  // mqttClient.setCallback(mqttCallback);
-  // int tryMqtt = 0;
-  // while (!mqttClient.connected() && tryMqtt++ < 5)
-  // {
-  //   if (mqttClient.connect(clientId, mqttUsername, mqttPassword))
-  //   {
-  //     mqttClient.subscribe(topic);
-  //   }
-  //   else
-  //   {
-  //     Serial.println("Waitinf for MQTT - " + tryMqtt);
-  //     delay(1000);
-  //   }
-  // }
-  Serial.println("MQTT callback connected");
 
   // OTA
   // Port defaults to 3232

@@ -8,7 +8,7 @@ ESP32 firmware (Arduino framework, PlatformIO) that reads a smart electricity me
 
 ## Commands
 
-PlatformIO single environment: `esp32doit-devkit-v1`.
+PlatformIO single environment: `esp32doit-devkit-v1`. The platform is pinned to `espressif32@7.0.1` (Arduino-ESP32 2.0.17); Arduino-ESP32 3.x changes the `esp_task_wdt_init` API, so don't bump it without porting the watchdog setup.
 
 - Build: `pio run`
 - Upload firmware: `pio run -t upload` — **uploads over OTA by default** (`upload_protocol = espota`, `upload_port = esppowermeter`). For a USB/serial flash, comment out those two lines in `platformio.ini`.

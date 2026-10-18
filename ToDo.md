@@ -13,12 +13,12 @@
 
 ## PR 2 – Hardening / hygiene
 
-- [ ] **10. `getP1Text()` re-parses the JSON table** for every line of every `/dump` request. Parse once and cache, or use a static lookup table.
-- [ ] **11. `/dump` output not HTML-escaped** – meter text messages go into the page unescaped.
-- [ ] **12. SPIFFS failure aborts `setup()`** – no web server or OTA, so no remote recovery. Continue without saved credentials (go to AP mode).
+- [x] **10. `getP1Text()` re-parses the JSON table** for every line of every `/dump` request. Parse once and cache, or use a static lookup table.
+- [x] **11. `/dump` output not HTML-escaped** – meter text messages go into the page unescaped.
+- [x] **12. SPIFFS failure aborts `setup()`** – no web server or OTA, so no remote recovery. Continue without saved credentials (go to AP mode).
 - [ ] **13. Hardcoded secrets** – MQTT login, AP password `almaalma`, OTA with no password. Move to a gitignored `secrets.h` (commit `secrets.example.h`) and set an OTA password.
-- [ ] **15. `mqttCallback` reads past the payload** (not zero-terminated). It isn't registered; fix it or delete it with the commented-out subscribe code.
-- [ ] **16. Unpinned platform** – `platform = espressif32`; Arduino-ESP32 3.x changed `esp_task_wdt_init`, so an update would break the build. Pin the currently installed version.
+- [x] **15. `mqttCallback` reads past the payload** (not zero-terminated). It isn't registered; fix it or delete it with the commented-out subscribe code.
+- [x] **16. Unpinned platform** – `platform = espressif32`; Arduino-ESP32 3.x changed `esp_task_wdt_init`, so an update would break the build. Pin the currently installed version.
 
 ## PR 3 – Optional design changes
 
