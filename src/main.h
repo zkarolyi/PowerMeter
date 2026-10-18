@@ -6,6 +6,9 @@ unsigned long apActiveMillis = 0; // mennyi ideje van AP módban a WIFI. 0: nem 
 const unsigned long apInterval = 600000; // AP mód timeout
 unsigned long lastWiFiCheckMillis = 0; // utolsó WiFi ellenőrzés ideje
 const unsigned long wifiCheckInterval = 10000; // WiFi ellenőrzés gyakorisága (10 másodperc)
+const int SSID_SIZE = 33;     // max. 32 karakter + lezáró nulla
+const int PASSWORD_SIZE = 65; // max. 64 karakter + lezáró nulla
+bool wifiConnectRequested = false; // a /connect kérés után a loop()-ban kapcsolódunk, hogy a válasz kimenjen
 
 void handleRoot();
 void handleConnect();
@@ -30,7 +33,10 @@ const char* mqttUsername = "openhabian";
 const char* mqttPassword = "openhabian";
 const char* topic = "PowerMeter/";
 uint16_t crc16Value = 0;
-const int MQTT_INCREASED_PACKET_SIZE = 256;
+const int MQTT_INCREASED_PACKET_SIZE = 1024;
+const uint16_t mqttSocketTimeout = 5; // másodperc, a 12 mp-es watchdog alatt kell maradnia
+unsigned long lastMqttConnectAttemptMillis = 0; // utolsó MQTT kapcsolódási kísérlet ideje
+const unsigned long mqttReconnectInterval = 5000; // MQTT újracsatlakozás gyakorisága (5 másodperc)
 void sendMQTTMessage(String mqttPayload);
 
 const char* txtP1Rows = "{\

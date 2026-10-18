@@ -10,8 +10,8 @@
 #include "crc16.h"
 
 WebServer server(80); // A WebServer objektum inicializálása, 80-as porton
-char ssid[32];
-char password[64];
+char ssid[SSID_SIZE];
+char password[PASSWORD_SIZE];
 
 String buffer[BUFFER_SIZE];
 
@@ -56,9 +56,11 @@ void onSerialData()
     else if (data.startsWith("!"))
     {
       crc16Value = CRC16(crc16Value, (unsigned char *)"!", 1);
-      if (data.length() > 5 && data.substring(1, 5).equalsIgnoreCase(String(crc16Value, HEX)))
+      char crcHex[5];
+      snprintf(crcHex, sizeof(crcHex), "%04X", crc16Value); // vezető nullákkal, pl. 0ABC
+      if (data.length() > 5 && data.substring(1, 5).equalsIgnoreCase(crcHex))
       {
-        data = "CRC (" + String(crc16Value, HEX) + " OK)";
+        data = "CRC (" + String(crcHex) + " OK)";
       }
       else
       {
@@ -132,11 +134,21 @@ boolean readWiFiCredentials(char *ssid, char *password)
     Serial.println("Failed to open file for reading");
     return false;
   }
-  file.readStringUntil('\n').toCharArray(ssid, 32);
-  ssid[strlen(ssid) - 1] = '\0';
-  file.readStringUntil('\n').toCharArray(password, 64);
-  password[strlen(password) - 1] = '\0';
+  String fileSsid = file.readStringUntil('\n');
+  String filePassword = file.readStringUntil('\n');
   file.close();
+  // println() "\r\n"-t ír, a '\r'-t le kell vágni (más szóközt nem, a jelszó tartalmazhat ilyet)
+  if (fileSsid.endsWith("\r"))
+    fileSsid.remove(fileSsid.length() - 1);
+  if (filePassword.endsWith("\r"))
+    filePassword.remove(filePassword.length() - 1);
+  if (fileSsid.length() == 0)
+  {
+    Serial.println("Empty SSID in wifi file");
+    return false;
+  }
+  fileSsid.toCharArray(ssid, SSID_SIZE);
+  filePassword.toCharArray(password, PASSWORD_SIZE);
   Serial.println("Wifi read from file");
   return true;
 }
@@ -155,17 +167,24 @@ void handleRoot()
 
 void handleConnect()
 {
-  String ssid = server.arg("ssid");
-  String password = server.arg("password");
-  saveWiFiCredentials(ssid.c_str(), password.c_str());
-  connectToRouter(ssid, password);
+  String newSsid = server.arg("ssid");
+  String newPassword = server.arg("password");
+  if (newSsid.length() == 0 || newSsid.length() >= SSID_SIZE || newPassword.length() >= PASSWORD_SIZE)
+  {
+    server.send(400, "text/html", "<p1>Hibás SSID vagy jelszó</p1>");
+    return;
+  }
+  saveWiFiCredentials(newSsid.c_str(), newPassword.c_str());
+  newSsid.toCharArray(ssid, SSID_SIZE);
+  newPassword.toCharArray(password, PASSWORD_SIZE);
+  server.send(200, "text/html", "<p1>Csatlakozás: " + newSsid + "</p1>");
+  wifiConnectRequested = true; // a loop() kapcsolódik, miután a válasz kiment
 }
 
 void connectToRouter(String ssid, String password)
 {
-  Serial.print(ssid);
-  Serial.print(password);
-  Serial.println("--");
+  Serial.print("SSID: ");
+  Serial.println(ssid);
   WiFi.disconnect();
   delay(100);
   WiFi.setHostname("PowerMeter");
@@ -179,8 +198,9 @@ void connectToRouter(String ssid, String password)
     esp_task_wdt_reset();
     delay(1000);
   }
-  if (countDown < 1)
+  if (WiFi.status() != WL_CONNECTED)
   {
+    Serial.println();
     Serial.println("Can not connect. Back to AP mode.");
     createAP();
     return;
@@ -254,7 +274,7 @@ void flashLed()
 
 void sendMQTTMessage(String payload)
 {
-  if (payload.length() > MQTT_MAX_PACKET_SIZE)
+  if (WiFi.status() != WL_CONNECTED)
   {
     return;
   }
@@ -269,8 +289,23 @@ void sendMQTTMessage(String payload)
     mqttPayload = payload.substring(firstOpenParenth + 1, firstStar != -1 ? firstStar : lastCloseParenth);
   }
 
+  // fejléc (MQTT_MAX_HEADER_SIZE) + 2 bájt topic hossz + topic + payload
+  if (MQTT_MAX_HEADER_SIZE + 2 + mqttTopic.length() + mqttPayload.length() > mqttClient.getBufferSize())
+  {
+    Serial.print("MQTT message too long, skipped: ");
+    Serial.println(mqttTopic);
+    return;
+  }
+
   if (!mqttClient.connected())
   {
+    unsigned long currentMillis = millis();
+    if (currentMillis - lastMqttConnectAttemptMillis < mqttReconnectInterval)
+    {
+      return;
+    }
+    lastMqttConnectAttemptMillis = currentMillis;
+    esp_task_wdt_reset();
     if (mqttClient.connect(clientId, mqttUsername, mqttPassword))
     {
       Serial.println("Connected to MQTT broker");
@@ -280,6 +315,7 @@ void sendMQTTMessage(String payload)
       Serial.print("Failed to connect to MQTT broker, rc=");
       Serial.print(mqttClient.state());
       Serial.println(" retrying later");
+      return;
     }
   }
   if (mqttClient.publish(mqttTopic.c_str(), mqttPayload.c_str()))
@@ -327,12 +363,13 @@ void setup()
   server.on("/", handleRoot);           // A főoldalhoz tartozó kezelő függvény
   server.on("/connect", handleConnect); // Az adatok beküldésekor meghívott függvény
   server.on("/dump", onRequest);
-  server.serveStatic("/", SPIFFS, "/");
+  server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico"); // csak a favicon, a /wifi.txt ne legyen elérhető
   server.onNotFound(onNotFound);
   server.begin(); // A WebServer elindítása
 
   mqttClient.setServer(mqttBroker, mqttPort);
   mqttClient.setBufferSize(MQTT_INCREASED_PACKET_SIZE);
+  mqttClient.setSocketTimeout(mqttSocketTimeout);
   Serial.println("Starting MQTT callback");
   // mqttClient.setCallback(mqttCallback);
   // int tryMqtt = 0;
@@ -396,6 +433,11 @@ void setup()
 void loop()
 {
   server.handleClient();
+  if (wifiConnectRequested)
+  {
+    wifiConnectRequested = false;
+    connectToRouter(ssid, password);
+  }
   onSerialData();
   mqttClient.loop();
   ArduinoOTA.handle();
